@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Airport Maps</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.1/leaflet.css" />
+    <style type="text/css">
+        .leaflet-container{
+            background-color:#c5e8ff;
+        }
+
+        html {
+          width: 100%;
+          height: 100%;
+        }
+
+        body {
+          width: 100%;
+          height: 100%;
+        }
+
+        #search-layer {
+            z-index: 100;
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            top: 30px;
+            flex: 1;
+        }
+
+        #search-box {
+            font-size: 20px;
+            max-width: 20%;
+        }
+
+        input {
+            height: 20px;
+            display: flex;
+            
+            width: 300px;
+
+            font-size: 16px;
+            padding: 6px;
+            margin: 6px;
+            outline: 0;
+        }
+
+        #suggestion {
+            position: absolute;
+            top: 40px;
+            left: 0px;
+            z-index: 200;
+            width: 300px;
+            margin: 4px;
+            padding: 4px;
+            border: 1px solid grey;
+        }
+
+        #suggestion > span {
+            display: block;
+            border: 1px solid grey;
+            padding: 4px;
+        }
+
+        #selection > span {
+            padding: 4px;
+        }
+
+        .highlight {
+            background: yellow;
+        }
+
+    </style>
+
+</head>
+
+<body>
+        <div id="search-layer">
+            <div id="search-box">
+                <input id="search-input" autocomplete="list" role="combobox" placeholder="Search airport code"></input>
+            </div>
+            <div id="suggestion">
+                <div>just a placeholder</div>
+            </div>
+            <div id="selection">
+
+            </div>
+        </div>
+<script>
+    class Result {
+        constructor(data, score) {
+            this.data = data;
+            this.score = score;
+        }
+    }
+    class SimpleSearch {
+        constructor(items, options) {
+            this.items = items;
+            this.options = options;
+
+            this.keys = options.keys;
+        }
+
+        search(keyword) {
+            console.time('search');
+            var result = new Map();
+
+            var MAX_RESULTS = 100;
+
+            var score = 0;
+
+            keyword = keyword.toUpperCase()
+
+            // Exact match
+            this.keys.forEach((k, i) => {
+                this.items.forEach(item => {
+                    var check = item[k];
+                    if (!check) {
+                        return;
+                    }
+                    check = check.toUpperCase()
+                    if (result.has(item)) {
+                        return;
+                    }
+
+                    if (check === keyword)  {
+                        result.set(item, new Result(item, score));
+                    }
+
+                    if (result.size > MAX_RESULTS) return;
+                })
+
+                score += 0.01;
+            });
+
+            // starts with or mid string
+            this.keys.forEach((k, i) => {
+                this.items.forEach(item => {
+                    var check = item[k];
+                    if (!check) {
+                        return;
+                    }
+
+                    check = check.toUpperCase()
+                    if (result.has(item)) {
+                        return;
+                    }
+
+                    // check.startsWith(keyword)
+                    var i = check.indexOf(keyword);
+                    if (i > -1) {
+                        result.set(item, new Result(item, score + i / check.length));
+                    }
+
+                    if (result.size > MAX_RESULTS) return;
+                })
+
+                score += 0.01;
+            });
+
+            console.timeEnd('search');
+
+            return [...result.values()].sort((a, b) => a.score - b.score)
+        }
+
+    }
+
+    class Formatter {
+        constructor(handler, html, custom) {
+            this.handler = handler;
+            this.html = html;
+            this.custom = custom;
+        }
+    }
+
+    class Selection {
+        constructor(onchange) {
+            this.set = new Set();
+            this.handler = onchange;
+            this.index = 0;
+        }
+
+        // adds selection
+        add(entry) {
+            this.set.add(entry);
+            this.onchange();
+        }
+
+        remove(entry) {
+            this.set.delete(entry);
+            this.onchange();
+        }
+
+        toggle(entry) {
+            if (this.set.has(entry)) {
+                this.remove(entry);
+            }
+            else {
+                this.add(entry);
+            }
+        }
+
+        onchange() {
+            if (this.handler) this.handler([...this.set]);
+        }
+    }
+
+    var selection = new Selection(updateSelection);
+    var suggestions = []; // data
+
+    var suggestion = new Formatter(
+        (d) => {
+            console.log('suggestion onclick', d);
+            // TODO add listener 
+            addPort(d.data.iata);
+            selection.add(d.data);
+            clearSearchBox();
+        },
+        (d) => {
+            const { iata, city, name, state, country, country2 } = d.data;
+            return `${iata} - ${name} - ${city} - ${state} - ${country2 || country}`;
+        },
+        (data, div, i) => {
+            if (selection.index === i) {
+                div.className += 'highlight';
+            }
+        }
+    ); // handler
+
+    function updateSuggestion() {
+        var s = document.getElementById('suggestion');
+        updateDom(s, suggestions, suggestion);
+    }
+
+    var selectionFormater = new Formatter(
+        (data) => {
+            console.log('selection onclick', data);
+            // onclick
+            selection.toggle(data);
+        },
+        (data) => {
+            // display
+            return `${data.iata}`;
+        },
+        (data, div, i) => {
+        }
+    );
+
+    function updateSelection(items) {
+        console.log('updateSelection', items);
+        var s = document.getElementById('selection');
+        updateDom(s, items, selectionFormater);
+    }
+
+    function updateDom(el, items, formatter) {
+        while (el.children.length) {
+            el.children[el.children.length - 1].remove();
+        }
+
+        items.forEach((entry, i) => {
+            var div = document.createElement('span');
+            div.innerHTML = formatter.html(entry);
+            div.onclick = _ => formatter.handler(entry);
+            formatter.custom(entry, div, i);
+            el.appendChild(div);
+        })
+    }
+  
+    function jsonGet(url) {
+        return fetch(url).then(v => v.json())
+    }
+
+    var airport_map = new Map();
+    var getAirport = jsonGet("airports.json").then((_v) => {
+        airports = _v
+        console.log('airports done');
+    })
+
+    var countries = new Map();
+    var getCountries = jsonGet('countries.json').then(data => {
+        data.forEach(country => {
+            const { name } = country;
+            countries.set(country['alpha-2'], name);
+        });
+    })
+
+    Promise.all([getAirport, getCountries]).then(init);
+
+    function init() {
+        var list = Object.keys(airports).map(k  => airports[k])
+            // .filter(v => (v.name.toUpperCase().indexOf('INTERNATIONAL') > -1))
+            .filter(v => v.iata);
+        
+        list.forEach(port => {
+            port.country2 = countries.get(port.country);
+        })
+
+        var options = {
+            keys: [
+                "iata",
+                "name",
+                "city",
+                "state",
+                "country",
+                "country2",
+
+                // spatial searching in future.
+                // elevation
+                // lat
+                // lon
+            ],
+            exactMatch: false,
+        };
+
+        console.log(list.length);
+        fuse = new SimpleSearch(list, options); // "list" is the item array
+
+        var codes = Object.keys(airports);
+        console.log('airports', codes.length);
+
+        codes.map(code => airports[code]).forEach(v => {
+            if (v.iata)
+            airport_map.set(v.iata, v);
+        });
+    }
+
+  var searching;
+  var search_item;
+  function scheduleSearch(item) {
+    search_item = item;
+    console.log('schedule search', item);
+    if (searching) return;    
+
+    searching = setTimeout(search, 200);
+  }
+
+  function search() {
+      run_search(search_item);
+      searching = clearTimeout(searching);
+  }
+
+  function run_search(key){
+    result = fuse.search(key);
+    console.log('results', result.length);
+    suggestions = result.slice(0, 24);
+    updateSuggestion();
+
+    console.log(result[0]);
+  }
+
+  function clearSearchBox() {
+    si.value = "";
+    clearSearch();
+  }
+
+  function clearSearch() {
+    suggestions = [];
+    updateSuggestion();
+  }
+
+    var si = document.getElementById('search-input')
+    var triggerSearch = true;
+    si.onkeyup = function(e) {
+        var txt = si.value;
+        if (txt.length < 1) {
+            clearSearch();
+            return;
+        }
+
+        if (triggerSearch) {
+            scheduleSearch(txt);
+        } else {
+            updateSuggestion()
+        }
+    }
+    si.onkeydown = function(e) {
+        // var txt = this.value.toUpperCase().split(/\s+/);
+        // scheduleSearch(this.value);
+        console.log(e.key);
+        triggerSearch = true;
+        if (e.key === "ArrowDown") {
+            selection.index++;
+            triggerSearch = false;
+        } else if (e.key === "ArrowUp") {
+            selection.index--;
+            triggerSearch = false;
+        } else if (e.key == 'Escape') {
+            clearSearchBox();
+            triggerSearch = false;
+        } else if (e.key == 'Enter') {
+            triggerSearch = false;
+            // console.log(txt);
+
+            var data = suggestions[selection.index].data;
+            selection.toggle(data);
+            addPort(data.iata);
+            clearSearchBox();
+        }
+    };
+
+    </script>
+
+<div id="map" style="width: 100%; height: 100%"></div>
+
+<script src="http://cdn.leafletjs.com/leaflet-0.7.1/leaflet.js"></script>
+<script>
+    var myGeoJSONPath = 'world.geo.json';
+    var myCustomStyle = {
+        stroke: false,
+        fill: true,
+        fillColor: '#eee',
+        fillOpacity: 1
+    }
+
+    map = L.map('map')
+
+    jsonGet(myGeoJSONPath).then((data) => {
+        map.setView([39.74739, -105], 2);
+
+        L.geoJson(data, {
+            clickable: true,
+            style: myCustomStyle
+        }).addTo(map);
+
+        console.log('geo done');
+        // init();
+    })
+
+    function addPort(port) {
+        data = airport_map.get(port)
+      if (!data) {
+        console.log('cant find', port)
+        return;
+      }
+      const { lat, lon, iata, name, city } = data;
+      const circle_opts = {
+        color: 'red',
+        fillColor: '#f03',
+        fillOpacity: 0.5,
+        radius: 500
+      };
+
+      const coords = [ lat, lon ];
+      var marker = L
+        .marker(coords)
+        // .circle(coords, circle_opts)
+        .addTo(map);
+      marker.bindPopup(`<b>${iata} - ${city}</b><br>${name}`).openPopup();
+
+      marker.once('click', () => {
+          map.removeLayer(marker);
+      })
+ }
+</script>
+
+</body>
+</html>
