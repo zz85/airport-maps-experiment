@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Airport Maps</title>
+    <meta charset="utf-8" />
+    
+    <style type="text/css">
+        html {
+          width: 100%;
+          height: 100%;
+        }
+
+        body {
+            width: 100%;
+            height: 100%;
+
+            margin: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: Monospace;
+            font-size: 13px;
+            line-height: 24px;
+        }
+
+    </style>
+</head>
+
+<script>
+
+    function jsonGet(url) {
+        return fetch(url).then(v => v.json())
+    }
+
+</script>
+
+<body>
+    <script type="module">
+        import * as THREE from './vendor/three.module.js'
+        // PARTICLE VERSION - NO CANVAs
+
+        var fg_color = '#fff'
+        var bg_color = '#000'
+        var myGeoJSONPath = 'world.geo.json';
+        var coords = 0;
+       
+        var canvas = document.createElement('canvas');
+        // document.body.appendChild(canvas);
+
+        // 2048x1024 800 400
+        var w = 800;
+        var h = 400;
+        var dpr = 4; // windw.devicePixelRatio;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        // canvas.style.width  =  w + 'px';
+        // canvas.style.height  =  h + 'px';
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        var mapCanvas = canvas;
+
+        // ctx.translate(180,  180);
+        ctx.translate(0.5 * w,  0.5 * h);
+        ctx.fillStyle = bg_color
+            ctx.fillRect(-w/2, -h/2, w, h)
+
+        function projection(lat, lon)  {
+            return  [lon/360, -lat/180]
+                .map((v, i) => i ? v * h : v * w)
+            // .map(v => v - 0.5);
+        }
+
+        var airport_map = new Map();
+
+        function plot_airports() {
+            var aircount = 0;
+            ctx.fillStyle = fg_color;  //  #333 red  fff
+            for  (var  a in airports)  {
+                port = airports[a];
+
+                const  { lat,  lon, name, iata } = port;
+                // if (!iata) continue;
+                // if (name.toLowerCase().indexOf("international") < 0) continue;
+
+                ctx.beginPath();
+                ctx.arc(...projection(lat, lon), 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                aircount++;
+
+                // if  (aircount >  5)  return;
+            }
+
+            console.log('aircount', aircount);
+        }
+
+        function plot_waypoints(port1, port2) {
+            var sfo = airport_map.get(port1);
+            var sin = airport_map.get(port2);
+
+            var start = [sin.lat, sin.lon];
+            var end = [sfo.lat, sfo.lon];
+
+            console.log('sfo, sin', sfo, sin);
+            haversine_d(start, end);
+
+            var latlngs = [];
+
+            var point = 20; // 2 , 3 ,  
+
+            var lat1 = degToRad(start[0])
+            var lon1 = degToRad(start[1])
+            var lat2 = degToRad(end[0])
+            var lon2 = degToRad(end[1])
+            var ra = latlonToVec(lat1, lon1);
+            var rb = latlonToVec(lat2, lon2);
+
+            for (var i = 0; i <= point; i++) {
+                var t = i / point;
+                var coord = midPoint(ra, rb, t);
+                latlngs.push(coord);
+            }
+
+            var llpaths = [];
+
+            llpaths.push([latlngs[0]]);
+
+            for (var i = 0; i < point; i++) {
+                if (Math.abs(latlngs[i][1] - latlngs[i + 1][1]) > 300)  {
+                    console.log(i, latlngs[i], latlngs[i + 1]);
+                    // heuristic, now chop this path.
+
+                    llpaths.push([latlngs[i+1]]);
+
+                } else {
+                    llpaths[llpaths.length - 1].push(latlngs[i + 1]);
+                }
+            }
+
+            // debug points
+            // ctx.fillStyle = '#d00';
+            // latlngs.forEach(coord => {
+            //     ctx.beginPath();
+            //     ctx.arc(...projection(...coord), 1 / 200, 0, Math.PI * 2);
+            //     ctx.fill();
+            // })
+
+            llpaths.forEach(latlngs => {
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'purple'
+
+                // lines
+                // ctx.strokeStyle = 'green'
+                ctx.beginPath();
+                ctx.moveTo(...projection(...latlngs[0]));
+                for (var i = 0; i < latlngs.length; i++) {
+                    ctx.lineTo(...projection(...latlngs[i]));
+                }
+                ctx.stroke();
+            })
+
+            var mid = midPoint(ra, rb, 0.5);
+            var mid1 = midPoint(ra, rb, 0.25);
+            var mid2 = midPoint(ra, rb, 0.75);
+
+            // quad
+            ctx.strokeStyle = 'red'
+            ctx.beginPath();
+            ctx.moveTo(...projection(...start));
+            ctx.quadraticCurveTo(...projection(...mid), ...projection(...end));
+            ctx.stroke();
+
+            // // cubic
+            // ctx.strokeStyle = 'orange'
+            // ctx.beginPath();
+            // ctx.moveTo(...projection(...start));
+            // ctx.bezierCurveTo(...projection(...mid1), ...projection(...mid2), ...projection(...end));
+            // ctx.stroke();
+
+            // // straight line
+            // ctx.strokeStyle = 'grey'
+            // ctx.beginPath();
+            // ctx.moveTo(...projection(...start));
+            // ctx.lineTo(...projection(...end));
+            // ctx.stroke();
+        }
+
+        
+
+        function plot_routes() {
+            plot_waypoints('SFO', 'SIN')
+            // plot_waypoints('SFO', 'JFK')
+            plot_waypoints('SFO', 'CPT')
+            plot_waypoints('SFO', 'FRA')
+            plot_waypoints('SFO', 'AKL')
+            // plot_waypoints('SIN', 'NRT')
+            // plot_waypoints('SIN', 'JFK')
+        }
+
+        function midPoint(ra, rb, t) {
+            var m = midVec(ra, rb, t);
+            var mv = vecToLatLon(...m);
+            var ll = mv.map(radToDeg);
+            // console.log(m, mv, ll);
+            return ll;
+        }
+
+        function midVec(a, b, t) {
+            var r = [0, 0, 0];
+
+            for (var i = 0; i < 3; i++) {
+                r[i] = a[i] * (1 - t) + b[i] * t;
+            }
+
+            return r;
+        }
+
+        function interpolate(start, end, factor) {
+            return (end - start) * factor + start;
+        }
+
+        function degToRad(degrees) {
+            return degrees * Math.PI / 180;
+        }
+
+        function radToDeg(rad) {
+            return rad * 180 / Math.PI;
+        }
+
+        function view(port) {
+        data = airport_map.get(port)
+        console.log(data)
+        if (!data) {
+            console.log('cant find', port)
+            return;
+        }
+        const { lat, lon } = data;
+        map.setView([ lat, lon ], 2);
+        }
+
+        function latlonToVec(lat, lon) {
+            var vx = Math.cos(lat) * Math.cos(lon);
+            var vy = Math.cos(lat) * Math.sin(lon);
+            var vz = Math.sin(lat);
+
+            return [vx, vy, vz];
+        }
+
+        function haversine_d(start, end) {
+            // https://en.wikipedia.org/wiki/Haversine_formula
+
+            var lat1 = degToRad(start[0])
+            var lon1 = degToRad(start[1])
+            var lat2 = degToRad(end[0])
+            var lon2 = degToRad(end[1])
+            
+            // also see https://dataviz.love/2017/02/13/draw-curved-lines-map/
+            var rt = Math.pow(Math.sin((lat2 - lat1)/2), 2) +
+                Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin((lon2 - lon1)/2), 2);
+            var d = 2 * Math.asin(Math.sqrt(rt));
+
+            console.log('distance', d * 6371);
+            return d;
+        }
+
+        // https://www.movable-type.co.uk/scripts/latlong-vectors.html
+        function vecToLatLon(vx, vy, vz) {
+            var lat = Math.atan2(vz, Math.sqrt(vx * vx + vy * vy));
+            var lon = Math.atan2(vy, vx);
+            
+            return [lat, lon];
+        }
+
+        // https://www.mathsisfun.com/algebra/vectors-cross-product.html
+        function crossProduct(v1, v2) {
+            var cx = v1[1] * v2[2] - v1[2] * v2[1];
+            var cy = v1[2] * v2[0] - v1[0] * v2[2];
+            var cz = v1[0] * v2[1] - v1[1] * v2[0];
+            return [cx, cy, cz];
+        }
+
+
+        import { OrbitControls } from './vendor/OrbitControls.js';
+
+        var camera, controls, scene, renderer;
+
+        var airports;
+        var airport_count;
+        var positions, particles;
+        var last_i;
+        jsonGet("airports.json").then((_v) => {
+            airports = _v
+
+            var codes = Object.keys(airports);
+            console.log('airports', codes.length);
+            airport_count = codes.length;
+            last_i = airport_count;
+
+            codes.map(code => airports[code]).forEach(v => {
+            if (v.iata)
+                airport_map.set(v.iata, v);
+            });
+
+            // init_map();
+            // plot_airports();
+            // plot_routes();
+
+            init();
+            animate();
+            // plot_waypoints2('SFO', 'JFK');
+
+            plot_waypoints2('SFO', 'FRA');
+            plot_waypoints2('SFO', 'FRA', 1);
+            plot_waypoints2('SFO', 'FRA', 2);
+            
+        })
+
+        //render(); // remove when using next line for animation loop (requestAnimationFrame)
+
+        window.plot_waypoints2 = function plot_waypoints2(port1, port2, option) {
+            var sfo = airport_map.get(port1);
+            var sin = airport_map.get(port2);
+
+            var start = [sin.lat, sin.lon];
+            var end = [sfo.lat, sfo.lon];
+
+            
+            var distance = haversine_d(start, end);
+            console.log('sfo, sin', sfo, sin, distance);
+
+            var latlngs = [];
+
+            var lat1 = degToRad(start[0])
+            var lon1 = degToRad(start[1])
+            var lat2 = degToRad(end[0])
+            var lon2 = degToRad(end[1])
+            var ra = latlonToVec(lat1, lon1);
+            var rb = latlonToVec(lat2, lon2);
+
+            var mid = midPoint(ra, rb, 0.5);
+
+            var start_p = projection(...start);
+            var end_p = projection(...end);
+            var mid_p = projection(...mid);
+
+            var point = 10;
+
+            for (var i = 0; i <= point; i++) {
+                var t = i / point;
+                var coord = midPoint(ra, rb, t);
+                latlngs.push(coord);
+            }
+
+            var curve;
+
+            if (!option) {
+                curve = new THREE.QuadraticBezierCurve3(
+                    new THREE.Vector3(start_p[0], 0, start_p[1]),
+                    new THREE.Vector3(mid_p[0], 100, mid_p[1]),
+                    new THREE.Vector3(end_p[0], 0, end_p[1]),
+                );
+            } else if (option == 1) {
+                curve = new THREE.QuadraticBezierCurve3(
+                    new THREE.Vector3(start_p[0], 0, start_p[1]),
+                    new THREE.Vector3(start_p[0] * 0.5 + end_p[0] * 0.5, 100, start_p[1] * 0.5 + end_p[1] * 0.5),
+                    new THREE.Vector3(end_p[0], 0, end_p[1]),
+                );
+            } else if (option == 2) {
+                curve = new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(start_p[0], 0, start_p[1]),
+                    new THREE.Vector3(mid_p[0], 50, mid_p[1]),
+                    new THREE.Vector3(end_p[0], 0, end_p[1]),
+                ]);
+            } else if (option == 3) {
+                // latlngs.map(projection).map(([x, y]) => new THREE.Vector3(x, 0, y))
+            }
+
+            var points = 400;
+
+            for (var i = 0; i <= points; i++) {
+                var t = i / points;
+                var v = curve.getPointAt(t);
+                // console.log(v)
+                positions.setXYZ(i + last_i, v.x, v.y, v.z);
+                // positions.setY(i + airport_count, -10000);
+                //  
+            }
+
+            // positions.dynamic = true;
+            // particles.needsUpdate = true;
+
+            last_i = points + last_i;
+            particles.geometry.setDrawRange( 0, last_i );
+            
+            positions.needsUpdate = true;
+
+            return;
+
+            var llpaths = [];
+
+            llpaths.push([latlngs[0]]);
+
+            for (var i = 0; i < point; i++) {
+                if (Math.abs(latlngs[i][1] - latlngs[i + 1][1]) > 300)  {
+                    console.log(i, latlngs[i], latlngs[i + 1]);
+                    // heuristic, now chop this path.
+
+                    llpaths.push([latlngs[i+1]]);
+
+                } else {
+                    llpaths[llpaths.length - 1].push(latlngs[i + 1]);
+                }
+            }
+
+            // debug points
+            // ctx.fillStyle = '#d00';
+            // latlngs.forEach(coord => {
+            //     ctx.beginPath();
+            //     ctx.arc(...projection(...coord), 1 / 200, 0, Math.PI * 2);
+            //     ctx.fill();
+            // })
+
+            llpaths.forEach(latlngs => {
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'purple'
+
+                // lines
+                // ctx.strokeStyle = 'green'
+                ctx.beginPath();
+                ctx.moveTo(...projection(...latlngs[0]));
+                for (var i = 0; i < latlngs.length; i++) {
+                    ctx.lineTo(...projection(...latlngs[i]));
+                }
+                ctx.stroke();
+            })
+
+            var mid = midPoint(ra, rb, 0.5);
+            var mid1 = midPoint(ra, rb, 0.25);
+            var mid2 = midPoint(ra, rb, 0.75);
+
+            // quad
+            ctx.strokeStyle = 'red'
+            ctx.beginPath();
+            ctx.moveTo(...projection(...start));
+            ctx.quadraticCurveTo(...projection(...mid), ...projection(...end));
+            ctx.stroke();
+
+            // // cubic
+            // ctx.strokeStyle = 'orange'
+            // ctx.beginPath();
+            // ctx.moveTo(...projection(...start));
+            // ctx.bezierCurveTo(...projection(...mid1), ...projection(...mid2), ...projection(...end));
+            // ctx.stroke();
+
+            // // straight line
+            // ctx.strokeStyle = 'grey'
+            // ctx.beginPath();
+            // ctx.moveTo(...projection(...start));
+            // ctx.lineTo(...projection(...end));
+            // ctx.stroke();
+        }
+        
+        
+        
+        function init() {
+            scene = new THREE.Scene();
+            // scene.background = new THREE.Color( 0xcccccc );
+            // scene.fog = new THREE.FogExp2( 0xcccccc, 0.002 );
+            renderer = new THREE.WebGLRenderer( { antialias: true } );
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+            camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 10000 );
+            camera.position.set( 0, 200, 0 );
+            // controls
+            controls = new OrbitControls( camera, renderer.domElement );
+            //controls.addEventListener( 'change', render ); // call this only in static scenes (i.e., if there is no animation loop)
+            controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 10;
+            controls.maxDistance = 1000;
+            controls.maxPolarAngle = Math.PI / 2;
+            
+            var sprite = new THREE.TextureLoader().load( "/gits/three.js/examples/textures/sprites/spark1.png" )
+            // spark1 disc ball circle 
+
+            var particle_count = 30000;
+
+            var geometry = new THREE.BufferGeometry();
+            var vertices = [];
+            for ( var i = 0; i < particle_count; i ++ ) {
+                var x = Math.random() * 2000 - 1000;
+                var y = 0;
+                var z = Math.random() * 2000 - 1000;
+                vertices.push( x, y, z );
+            }
+            
+            
+            geometry.addAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+            positions = geometry.attributes.position;
+            positions.dynamic = true;
+
+            // sprite.needsUpdate = true;
+            var materials = new THREE.PointsMaterial( { size: 4, map: sprite, blending: THREE.AdditiveBlending, depthTest: false, transparent: true } );
+            materials.color
+                .setHSL( 1, 1, 1 );
+                // .set(221, 221, 221); // 
+            particles = new THREE.Points( geometry, materials );
+            scene.add( particles );
+
+
+            var i = 0;
+            console.log(airports);
+            for  (var  a in airports)  {
+                var port = airports[a];
+                const  { lat,  lon, name, iata, elevation } = port;
+                // if (!iata) continue;
+                // if (name.toLowerCase().indexOf("international") < 0) continue;
+
+                let [x, z] = projection(lat, lon);
+                // vertices[i * 3 + 0 ] = x * 0.01;
+                // vertices[i * 3 + 1 ] = 0;
+                // vertices[i * 3 + 2 ] = z * 0.01;
+
+                
+
+                positions.setX(i, x);
+                positions.setY(i, elevation * 0.01 * 0);
+                positions.setZ(i, z);
+
+                i++;
+
+                // if  (aircount >  5)  return;
+            }
+
+            console.log('i', i);
+
+            for (;i < particle_count; i++) {
+                positions.setX(i, x);
+                positions.setY(i, -100000);
+                positions.setZ(i, z);
+            }
+
+            materials.needsUpdate = true;
+
+
+            var material = new THREE.MeshBasicMaterial({ color: 0xffffff,  flatShading: true } )
+            var floorMesh = new THREE.Mesh( new THREE.PlaneBufferGeometry( 1000, 1000, 1, 1 ), material );
+
+            floorMesh.rotation.y = Math.PI;
+            floorMesh.rotation.x = Math.PI / 2;
+            floorMesh.rotation.z = -Math.PI / 2;
+            floorMesh.position.y = -10;
+            // scene.add( floorMesh );
+
+            // lights
+            var light = new THREE.DirectionalLight( 0x333333 ); // 0xffffff
+            light.position.set( 1, 1, 1 );
+            scene.add( light );
+            var light = new THREE.DirectionalLight( 0x002288 ); /// 0x002288
+            light.position.set( - 1, - 1, - 1 );
+            scene.add( light );
+            var light = new THREE.AmbientLight( 0x222222 );
+            scene.add( light );
+            //
+            window.addEventListener( 'resize', onWindowResize, false );
+        }
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+        }
+        function animate() {
+            requestAnimationFrame( animate );
+            controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
+            render();
+        }
+        function render() {
+            renderer.render( scene, camera );
+        }
+    </script>
+</body>
+</html>
