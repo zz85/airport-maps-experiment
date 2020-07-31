@@ -8,3 +8,7 @@ Airport Mapping experiments
 [input_search_component.html](input_search_component.html) - Custom airport input search component
 
 [input_search_with_leaflet.html](input_search_with_leaflet.html) - Custom search with Leaflet map
+
+[Airport maps altitudes](threejs_map_altitude.html) - 3D Airport maps altitudes
+
+[threejs_map_plot.html](threejs_map_plot.html) - 3D Path plot

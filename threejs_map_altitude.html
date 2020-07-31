@@ -3,7 +3,7 @@
 <head>
     <title>Airport Maps</title>
     <meta charset="utf-8" />
-    
+
     <style type="text/css">
 
         html {
@@ -14,7 +14,7 @@
         body {
           width: 100%;
           height: 100%;
-       
+
         margin: 0;
         background-color: #000;
         color: #fff;
@@ -42,7 +42,7 @@
 <body>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/109/three.js"></script>
-    
+
     <script>
 
         // PARTICLE VERSION - NO CANVAS
@@ -51,7 +51,7 @@
         var bg_color = '#000'
         var myGeoJSONPath = 'world.geo.json';
         var coords = 0;
-       
+
         canvas = document.createElement('canvas');
         // document.body.appendChild(canvas);
 
@@ -93,16 +93,16 @@
         }
 
         jsonGet(myGeoJSONPath).then((data) => {
-            
+
             // plot_worldmap(data);
-    
+
             next();
 
-            
+
         })
-        
+
         function next()  {
-            
+
         }
 
         function plot_airports() {
@@ -127,7 +127,7 @@
         }
 
         function plot_worldmap(data) {
-        
+
             console.log('features', data.features.length);
 
             ctx.lineWidth = 0.1;
@@ -167,7 +167,7 @@
                         coords++;
                         if (i == 0) {
                             ctx.moveTo(...projection(lat,  lon))
-                        } else { 
+                        } else {
                             ctx.lineTo(...projection(lat,  lon))
                         }
                     })
@@ -212,17 +212,17 @@
                 ctx.textBaseline = "middle";
 
                 ctx.beginPath();
-                
-                // if (name == 'Canada') 
+
+                // if (name == 'Canada')
                 ctx.fillStyle = fg_color;
                 // if (weight > 100) ctx.fillText(name, ...coords);
-                
+
                 ctx.restore();
             })
 
             // console.log('coords', coords, 'country', country);
 
-            
+
 
         }
 
@@ -238,7 +238,7 @@
 
             var latlngs = [];
 
-            var point = 50; // 2 , 3 ,  
+            var point = 50; // 2 , 3 ,
 
             var lat1 = degToRad(start[0])
             var lon1 = degToRad(start[1])
@@ -317,7 +317,7 @@
             // ctx.stroke();
         }
 
-        
+
 
         function plot_routes() {
             plot_waypoints('SFO', 'SIN')
@@ -385,7 +385,7 @@
             var lon1 = degToRad(start[1])
             var lat2 = degToRad(end[0])
             var lon2 = degToRad(end[1])
-            
+
             // also see https://dataviz.love/2017/02/13/draw-curved-lines-map/
             var rt = Math.pow(Math.sin((lat2 - lat1)/2), 2) +
                 Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin((lon2 - lon1)/2), 2);
@@ -399,7 +399,7 @@
         function vecToLatLon(vx, vy, vz) {
             var lat = Math.atan2(vz, Math.sqrt(vx * vx + vy * vy));
             var lon = Math.atan2(vy, vx);
-            
+
             return [lat, lon];
         }
 
@@ -431,7 +431,7 @@
             })
 
 			//render(); // remove when using next line for animation loop (requestAnimationFrame)
-			
+
 			function init() {
 				scene = new THREE.Scene();
 				// scene.background = new THREE.Color( 0xcccccc );
@@ -451,9 +451,9 @@
 				controls.minDistance = 10;
 				controls.maxDistance = 1000;
 				controls.maxPolarAngle = Math.PI / 2;
-                
+
                 var sprite = new THREE.TextureLoader().load( "/gits/three.js/examples/textures/sprites/spark1.png" )
-                // spark1 disc ball circle 
+                // spark1 disc ball circle
 
                 var particle_count = 30000;
 
@@ -465,8 +465,8 @@
 					var z = Math.random() * 2000 - 1000;
 					vertices.push( x, y, z );
                 }
-                
-                
+
+
                 geometry.addAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
                 var position = geometry.attributes.position;
                 position.dynamic = true;
@@ -475,7 +475,7 @@
                 var materials = new THREE.PointsMaterial( { size: 8, map: sprite, blending: THREE.AdditiveBlending, depthTest: false, transparent: true } );
                 materials.color
                     .setHSL( 1, 1, 1 );
-                    // .set(221, 221, 221); // 
+                    // .set(221, 221, 221); //
                 var particles = new THREE.Points( geometry, materials );
                 scene.add( particles );
 
@@ -493,7 +493,7 @@
                     // vertices[i * 3 + 1 ] = 0;
                     // vertices[i * 3 + 2 ] = z * 0.01;
 
-                    
+
 
                     position.setX(i, x);
                     position.setY(i, elevation * 0.01);

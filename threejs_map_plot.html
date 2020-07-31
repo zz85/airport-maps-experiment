@@ -3,7 +3,7 @@
 <head>
     <title>Airport Maps</title>
     <meta charset="utf-8" />
-    
+
     <style type="text/css">
         html {
           width: 100%;
@@ -42,7 +42,7 @@
         var bg_color = '#000'
         var myGeoJSONPath = 'world.geo.json';
         var coords = 0;
-       
+
         var canvas = document.createElement('canvas');
         // document.body.appendChild(canvas);
 
@@ -105,7 +105,7 @@
 
             var latlngs = [];
 
-            var point = 20; // 2 , 3 ,  
+            var point = 20; // 2 , 3 ,
 
             var lat1 = degToRad(start[0])
             var lon1 = degToRad(start[1])
@@ -184,7 +184,7 @@
             // ctx.stroke();
         }
 
-        
+
 
         function plot_routes() {
             plot_waypoints('SFO', 'SIN')
@@ -252,7 +252,7 @@
             var lon1 = degToRad(start[1])
             var lat2 = degToRad(end[0])
             var lon2 = degToRad(end[1])
-            
+
             // also see https://dataviz.love/2017/02/13/draw-curved-lines-map/
             var rt = Math.pow(Math.sin((lat2 - lat1)/2), 2) +
                 Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin((lon2 - lon1)/2), 2);
@@ -266,7 +266,7 @@
         function vecToLatLon(vx, vy, vz) {
             var lat = Math.atan2(vz, Math.sqrt(vx * vx + vy * vy));
             var lon = Math.atan2(vy, vx);
-            
+
             return [lat, lon];
         }
 
@@ -311,7 +311,7 @@
             plot_waypoints2('SFO', 'FRA');
             plot_waypoints2('SFO', 'FRA', 1);
             plot_waypoints2('SFO', 'FRA', 2);
-            
+
         })
 
         //render(); // remove when using next line for animation loop (requestAnimationFrame)
@@ -323,7 +323,7 @@
             var start = [sin.lat, sin.lon];
             var end = [sfo.lat, sfo.lon];
 
-            
+
             var distance = haversine_d(start, end);
             console.log('sfo, sin', sfo, sin, distance);
 
@@ -382,7 +382,7 @@
                 // console.log(v)
                 positions.setXYZ(i + last_i, v.x, v.y, v.z);
                 // positions.setY(i + airport_count, -10000);
-                //  
+                //
             }
 
             // positions.dynamic = true;
@@ -390,7 +390,7 @@
 
             last_i = points + last_i;
             particles.geometry.setDrawRange( 0, last_i );
-            
+
             positions.needsUpdate = true;
 
             return;
@@ -458,9 +458,9 @@
             // ctx.lineTo(...projection(...end));
             // ctx.stroke();
         }
-        
-        
-        
+
+
+
         function init() {
             scene = new THREE.Scene();
             // scene.background = new THREE.Color( 0xcccccc );
@@ -480,9 +480,9 @@
             controls.minDistance = 10;
             controls.maxDistance = 1000;
             controls.maxPolarAngle = Math.PI / 2;
-            
+
             var sprite = new THREE.TextureLoader().load( "/gits/three.js/examples/textures/sprites/spark1.png" )
-            // spark1 disc ball circle 
+            // spark1 disc ball circle
 
             var particle_count = 30000;
 
@@ -494,8 +494,8 @@
                 var z = Math.random() * 2000 - 1000;
                 vertices.push( x, y, z );
             }
-            
-            
+
+
             geometry.addAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
             positions = geometry.attributes.position;
             positions.dynamic = true;
@@ -504,7 +504,7 @@
             var materials = new THREE.PointsMaterial( { size: 4, map: sprite, blending: THREE.AdditiveBlending, depthTest: false, transparent: true } );
             materials.color
                 .setHSL( 1, 1, 1 );
-                // .set(221, 221, 221); // 
+                // .set(221, 221, 221); //
             particles = new THREE.Points( geometry, materials );
             scene.add( particles );
 
@@ -522,7 +522,7 @@
                 // vertices[i * 3 + 1 ] = 0;
                 // vertices[i * 3 + 2 ] = z * 0.01;
 
-                
+
 
                 positions.setX(i, x);
                 positions.setY(i, elevation * 0.01 * 0);
