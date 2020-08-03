@@ -157,24 +157,27 @@
             init();
             animate();
 
-            plot_waypoints2('SFO', 'FRA');
-            plot_waypoints2('SFO', 'FRA', 1);
-            plot_waypoints2('SFO', 'FRA', 2);
+            // plot_3d_waypoint('SFO', 'FRA');
+            plot_3d_waypoint('SFO', 'FRA', 1);
+            // plot_3d_waypoint('SFO', 'FRA', 2);
+
+            // plot_3d_waypoint('SFO', 'SIN');
+            plot_3d_waypoint('SFO', 'SIN', 1);
+            // plot_3d_waypoint('SFO', 'SIN', 2);
 
         })
 
         //render(); // remove when using next line for animation loop (requestAnimationFrame)
 
-        window.plot_waypoints2 = function plot_waypoints2(port1, port2, option) {
-            var sfo = airport_map.get(port1);
-            var sin = airport_map.get(port2);
+        window.plot_3d_waypoint = function plot_3d_waypoint(port1, port2, option) {
+            var source_port = airport_map.get(port1);
+            var dest_port = airport_map.get(port2);
 
-            var start = [sin.lat, sin.lon];
-            var end = [sfo.lat, sfo.lon];
-
+            var start = [dest_port.lat, dest_port.lon];
+            var end = [source_port.lat, source_port.lon];
 
             var distance = haversine_d(start, end);
-            console.log('sfo, sin', sfo, sin, distance);
+            console.log('source_port, sin', source_port, dest_port, distance);
 
             var latlngs = [];
 
@@ -201,29 +204,34 @@
 
             var curve;
 
+            var HEIGHT = 100;
+
             if (!option) {
                 curve = new THREE.QuadraticBezierCurve3(
                     new THREE.Vector3(start_p[0], 0, start_p[1]),
-                    new THREE.Vector3(mid_p[0], 100, mid_p[1]),
+                    new THREE.Vector3(mid_p[0], HEIGHT, mid_p[1]),
                     new THREE.Vector3(end_p[0], 0, end_p[1]),
                 );
             } else if (option == 1) {
+                HEIGHT = distance * 60;
+                console.log('HEIGHT', distance, HEIGHT);
                 curve = new THREE.QuadraticBezierCurve3(
                     new THREE.Vector3(start_p[0], 0, start_p[1]),
-                    new THREE.Vector3(start_p[0] * 0.5 + end_p[0] * 0.5, 100, start_p[1] * 0.5 + end_p[1] * 0.5),
+                    new THREE.Vector3(start_p[0] * 0.5 + end_p[0] * 0.5, HEIGHT, start_p[1] * 0.5 + end_p[1] * 0.5),
                     new THREE.Vector3(end_p[0], 0, end_p[1]),
                 );
             } else if (option == 2) {
                 curve = new THREE.CatmullRomCurve3([
                     new THREE.Vector3(start_p[0], 0, start_p[1]),
-                    new THREE.Vector3(mid_p[0], 50, mid_p[1]),
+                    new THREE.Vector3(mid_p[0], HEIGHT / 2, mid_p[1]),
                     new THREE.Vector3(end_p[0], 0, end_p[1]),
                 ]);
+                // curve.curveType = 'chordal'
             } else if (option == 3) {
                 // latlngs.map(projection).map(([x, y]) => new THREE.Vector3(x, 0, y))
             }
 
-            var points = 400;
+            var points = 400 * distance * 0.5 | 0;
 
             for (var i = 0; i <= points; i++) {
                 var t = i / points;
@@ -247,7 +255,6 @@
 
         function init() {
             scene = new THREE.Scene();
-            // scene.background = new THREE.Color( 0xcccccc );
             // scene.fog = new THREE.FogExp2( 0xcccccc, 0.002 );
             renderer = new THREE.WebGLRenderer( { antialias: true } );
             renderer.setPixelRatio( window.devicePixelRatio );
@@ -257,7 +264,7 @@
             camera.position.set( 0, 200, 0 );
             // controls
             controls = new OrbitControls( camera, renderer.domElement );
-            //controls.addEventListener( 'change', render ); // call this only in static scenes (i.e., if there is no animation loop)
+            // controls.addEventListener( 'change', render ); // call this only in static scenes (i.e., if there is no animation loop)
             controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
             controls.dampingFactor = 0.05;
             controls.screenSpacePanning = false;
@@ -278,7 +285,6 @@
                 var z = Math.random() * 2000 - 1000;
                 vertices.push( x, y, z );
             }
-
 
             geometry.addAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
             positions = geometry.attributes.position;
