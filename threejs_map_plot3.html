@@ -145,8 +145,8 @@
             var start_p = projection(...start);
             var end_p = projection(...end);
 
-            var HEIGHT = distance * 60;
-            console.log('HEIGHT', distance, HEIGHT);
+            var HEIGHT = distance * 60 * 2;
+
             curve3.v0.set(start_p[0], 0, start_p[1]);
             curve3.v1.set(start_p[0] * 0.5 + end_p[0] * 0.5, HEIGHT, start_p[1] * 0.5 + end_p[1] * 0.5);
             curve3.v2.set(end_p[0], 0, end_p[1]);
@@ -168,18 +168,24 @@
             init();
             animate();
 
-            // plot_3d_waypoint('SFO', 'FRA');
-            plot_3d_waypoint('SFO', 'FRA', 1);
-            // plot_3d_waypoint('SFO', 'FRA', 2);
+            // // plot_3d_waypoint('SFO', 'FRA');
+            // plot_3d_waypoint('SFO', 'FRA', 1);
+            // // plot_3d_waypoint('SFO', 'FRA', 2);
 
-            // plot_3d_waypoint('SFO', 'SIN');
-            plot_3d_waypoint('SFO', 'SIN', 1);
-            // plot_3d_waypoint('SFO', 'SIN', 2);
+            // // plot_3d_waypoint('SFO', 'SIN');
+            // plot_3d_waypoint('SFO', 'SIN', 1);
+            // // plot_3d_waypoint('SFO', 'SIN', 2);
 
-            plot_3d_waypoint('SFO', 'IAD', 1);
+            // plot_3d_waypoint('SFO', 'IAD', 1);
 
-            sfo = airport_to_coords('SFO')
-            iad = airport_to_coords('IAD')
+            sfo = airport_to_coords('SFO');
+            iad = airport_to_coords('IAD');
+
+            var pops = ['SFO', 'IAD', 'DEN', 'LAX', 'PDX'];
+            window.coords = pops
+            .map(airport_to_coords);
+
+
             configure(sfo, iad);
         })
 
@@ -380,18 +386,32 @@
         }
 
         function render() {
-            // if (iad) {
-            //     // var points = 400 * distance * 0.5 | 0;
-            //     var points = 400;
-            //     for (var i = 0; i <= points; i++) {
-            //         var t = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
-            //         var v = curve3.getPoint(t);
-            //         positions.setXYZ(i + last_i, v.x, v.y, v.z);
-            //     }
+            if (iad) {
 
-            //     particles.geometry.setDrawRange( 0, points + last_i );
-            //     positions.needsUpdate = true;
-            // }
+
+                coords.forEach((coord, i) => {
+                    configure(sfo, coord)
+                    for (var j = 0; j < 5; j++) {
+                        var t = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
+                        var v = curve3.getPoint(t);
+                        positions.setXYZ(i * 5 + j + last_i, v.x, v.y, v.z);
+                    }
+                })
+
+                particles.geometry.setDrawRange( 0, last_i * 5 + coords.length );
+                positions.needsUpdate = true;
+
+                // // var points = 400 * distance * 0.5 | 0;
+                // var points = 400;
+                // for (var i = 0; i <= points; i++) {
+                //     var t = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
+                //     var v = curve3.getPoint(t);
+                //     positions.setXYZ(i + last_i, v.x, v.y, v.z);
+                // }
+
+                // particles.geometry.setDrawRange( 0, points + last_i );
+                // positions.needsUpdate = true;
+            }
 
             renderer.render( scene, camera );
         }
